@@ -1,45 +1,76 @@
-cmake_minimum_required(VERSION 2.8)
-project(DBoW2)
+cmake_minimum_required(VERSION 3.16)
 
+project(DBoW2 CXX)
+
+# Standard settings
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall  -O3 -march=native")
+# Output directories
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-set(HDRS_DBOW2
-  DBoW2/BowVector.h
-  DBoW2/FORB.h 
-  DBoW2/FClass.h       
-  DBoW2/FeatureVector.h
-  DBoW2/ScoringObject.h   
-  DBoW2/TemplatedVocabulary.h)
+# Dependencies
+find_package(OpenCV REQUIRED)
+
+# Interface library for common warnings
+add_library(dbow2_warnings INTERFACE)
+target_compile_options(dbow2_warnings INTERFACE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+)
+
+# Optimization/Architecture flags
+set(DBOW2_OPTIMIZATION_FLAGS -O3 -march=native) 
+
+# Configuration Header
+configure_file(DBoW2/DBoW2.cmake.in "${PROJECT_BINARY_DIR}/DBoW2Config.cmake" @ONLY)
+
 set(SRCS_DBOW2
   DBoW2/BowVector.cpp
   DBoW2/FORB.cpp      
   DBoW2/FeatureVector.cpp
   DBoW2/ScoringObject.cpp)
 
-set(HDRS_DUTILS
-  DUtils/Random.h
-  DUtils/Timestamp.h)
 set(SRCS_DUTILS
   DUtils/Random.cpp
   DUtils/Timestamp.cpp)
 
 
-find_package(OpenCV 4 QUIET)
-if(NOT OpenCV_FOUND)
-   find_package(OpenCV 3.0 QUIET)
-   if(NOT OpenCV_FOUND)
-      message(FATAL_ERROR "OpenCV > 3.0 not found.")
-   endif()
-endif()
+# Create shared library
+add_library(${PROJECT_NAME} SHARED ${SRCS_DBOW2} ${SRCS_DUTILS} )
 
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+# Apply warnings and optimization flags
+target_link_libraries(${PROJECT_NAME} PRIVATE dbow2_warnings)
+target_compile_options(${PROJECT_NAME} PRIVATE ${DBOW2_OPTIMIZATION_FLAGS})
 
-include_directories(${OpenCV_INCLUDE_DIRS})
-add_library(DBoW2 SHARED ${SRCS_DBOW2} ${SRCS_DUTILS})
-target_link_libraries(DBoW2 ${OpenCV_LIBS})
+# Set include directories for the target
+target_include_directories(${PROJECT_NAME} PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Link dependencies
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBS})
+
+# Install targets and headers
+install(TARGETS ${PROJECT_NAME}
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include)
+
+# Install configuration header
+install(FILES "${PROJECT_BINARY_DIR}/DBoW2Config.cmake" DESTINATION lib/cmake/DBoW2/)
+
+# Install all other public headers
+install(DIRECTORY DBoW2/ DESTINATION include/DBoW2 FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(DIRECTORY DUtils/ DESTINATION include/DUtils FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+
+
 

@@ -1,40 +1,80 @@
-echo "Configuring and building Thirdparty/DBoW2 ..."
+#!/bin/bash
 
-cd Thirdparty/DBoW2
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+delete_if_exists() {
+  local folder=$1
+  build_folder="${folder}/build"
+  bin_folder="${folder}/bin"
+  lib_folder="${folder}/lib"
+  if [ -d "$build_folder" ]; then
+    rm -rf "$build_folder"
+  fi
+  if [ -d "$bin_folder" ]; then
+    rm -rf "$bin_folder"
+  fi
+  if [ -d "$lib_folder" ]; then
+    rm -rf "$lib_folder"
+  fi
+}
 
-cd ../../g2o
+build_library() {
+  library_name="$1"
+  source_folder="$2"
+  verbose="$3"
+  force_build="$4"
 
-echo "Configuring and building Thirdparty/g2o ..."
+  build_folder="$source_folder/build"
+  bin_folder="$source_folder/bin"
+  lib_folder="$source_folder/lib"
 
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+  if [ "$force_build" = true ]; then
+  	delete_if_exists ${source_folder}
+  fi
 
-cd ../../Sophus
+  if [ "$verbose" = true ]; then
+    echo "[${library_name}][build.sh] Compile ${library_name} ... "
+  	cmake -G Ninja -B $build_folder -S $source_folder -DCMAKE_PREFIX_PATH=$source_folder -DCMAKE_INSTALL_PREFIX=$source_folder
+  	cmake --build $build_folder --config Release
+  else
+    echo "[${library_name}][build.sh] Compile ${library_name} (output disabled) ... "
+  	cmake -G Ninja -B $build_folder -S $source_folder -DCMAKE_PREFIX_PATH=$source_folder -DCMAKE_INSTALL_PREFIX=$source_folder > /dev/null 2>&1
+  	cmake --build $build_folder --config Release > /dev/null 2>&1
+  fi
+}
 
-echo "Configuring and building Thirdparty/Sophus ..."
+# Check inputs
+force_build=false
+verbose=false
+for input in "$@"
+do
+    if [ "$input" = "-f" ]; then
+  	force_build=true
+    fi
+    if [ "$input" = "-v" ]; then
+  	verbose=true
+    fi
+    if [ "$input" = "-fv" ] || [ "$input" = "-vf" ]; then
+  	verbose=true
+    force_build=true
+    fi
+done
 
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j
+# Baseline Dir
+LIBRARY_PATH=$(realpath "$0")
+LIBRARY_DIR=$(dirname "LIBRARY_PATH")
 
-cd ../../../
+# Build Sophus
+library_name="Sophus"
+source_folder="${LIBRARY_DIR}/Thirdparty/${library_name}"
+build_library ${library_name} ${source_folder} ${verbose} ${force_build}
 
-echo "Uncompress vocabulary ..."
+## Build ORB-SLAM2
+library_name="ORB-SLAM2"
+source_folder="${LIBRARY_DIR}"
+build_library ${library_name} ${source_folder} ${verbose} ${force_build}
 
-cd Vocabulary
-tar -xf ORBvoc.txt.tar.gz
-cd ..
-
-echo "Configuring and building ORB_SLAM3 ..."
-
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j4
+## Uncompress vocabulary
+echo "[${library_name}][build.sh] Uncompress vocabulary ... "
+vocabulary_folder="${LIBRARY_DIR}/Vocabulary"
+if [ ! -f "${vocabulary_folder}/ORBvoc.txt" ]; then
+	tar -xf "${LIBRARY_DIR}/Vocabulary/ORBvoc.txt.tar.gz" -C "${LIBRARY_DIR}/Vocabulary"
+fi
