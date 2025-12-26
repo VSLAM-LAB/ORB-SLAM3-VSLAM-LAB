@@ -580,7 +580,7 @@ void System::SaveKeyFrameTrajectoryVSLAMLAB(const string &filename)
     f.imbue(std::locale::classic());
 
     // CSV header
-    f << "timestamp,tx,ty,tz,qx,qy,qz,qw\n";
+    f << "ts (ns),tx (m),ty (m),tz (m),qx,qy,qz,qw\n";
 
     for(size_t i=0; i<vpKFs.size(); i++)
     {
@@ -594,7 +594,9 @@ void System::SaveKeyFrameTrajectoryVSLAMLAB(const string &filename)
         Sophus::SE3f Twc = pKF->GetPoseInverse();
         Eigen::Quaternionf q = Twc.unit_quaternion();
         Eigen::Vector3f t = Twc.translation();
-        f << std::fixed << std::setprecision(9) << pKF->mTimeStamp << ','
+
+        long long ts_ns = static_cast<long long>(std::round(pKF->mTimeStamp * 1e9));
+        f << std::fixed << std::setprecision(9) << ts_ns << ','
           << std::scientific << std::setprecision(7)
           << static_cast<double>(t(0)) << ','
           << static_cast<double>(t(1)) << ','

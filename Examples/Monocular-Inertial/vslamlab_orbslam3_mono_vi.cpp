@@ -20,7 +20,7 @@ namespace ORB_SLAM3{
 
 void LoadImages(const string &pathToSequence, const string &rgb_csv,
                 vector<string> &imageFilenames, vector<ORB_SLAM3::Seconds> &timestamps,
-                const string cam_name = "rgb0");
+                const string cam_name = "rgb_0");
 std::string paddingZeros(const std::string& number, const size_t numberOfZeros = 5);
 
 void removeSubstring(std::string& str, const std::string& substring) {
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
     LoadImages(sequence_path, rgb_csv, imageFilenames, timestampsCam, cam_name);
     size_t nImages = imageFilenames.size();
 
-    string pathImu = sequence_path + "/imu.csv";
+    string pathImu = sequence_path + "/" + settings["imu"].as<std::string>() + ".csv";
     vector<double> timestampsImu{};
     vector<cv::Point3f> vAcc, vGyro;
     LoadIMU(pathImu, timestampsImu, vAcc, vGyro);
@@ -217,7 +217,7 @@ void LoadImages(const string &pathToSequence, const string &rgb_csv,
     }
 
     // Required headers
-    const std::string header_ts = "ts_" + cam_name;
+    const std::string header_ts = "ts_" + cam_name + " (ns)";
     const std::string header_rgb0 = "path_" + cam_name;
 
     // Safely get indices
@@ -239,7 +239,7 @@ void LoadImages(const string &pathToSequence, const string &rgb_csv,
         std::string t_str = tokens[ts_idx];
         std::string rel_rgb0_path = tokens[rgb0_idx];
 
-        ORB_SLAM3::Seconds t = std::stod(t_str);
+        ORB_SLAM3::Seconds t = static_cast<double>(std::stoll(t_str)) * 1e-9;
 
         timestamps.push_back(t);
         imageFilenames.push_back(pathToSequence + "/" + rel_rgb0_path);
@@ -267,7 +267,7 @@ void LoadIMU(const string &imu_csv, vector<ORB_SLAM3::Seconds> &timestamps, vect
     }
 
     // Required headers
-    const std::string header_ts = "ts (s)";
+    const std::string header_ts = "timestamp (ns)";
     const std::string header_wx= "wx (rad s^-1)";
     const std::string header_wy= "wy (rad s^-1)";
     const std::string header_wz= "wz (rad s^-1)";
@@ -296,7 +296,8 @@ void LoadIMU(const string &imu_csv, vector<ORB_SLAM3::Seconds> &timestamps, vect
         std::vector<std::string> tokens = split(line, ',');
         
         // Assign variables using indices, regardless of column order
-        ORB_SLAM3::Seconds t = std::stod(tokens[ts_idx]);
+        std::string t_str = tokens[ts_idx];
+        ORB_SLAM3::Seconds t = static_cast<double>(std::stoll(t_str)) * 1e-9;
         double wx = std::stod(tokens[wx_idx]);
         double wy = std::stod(tokens[wy_idx]);
         double wz = std::stod(tokens[wz_idx]);

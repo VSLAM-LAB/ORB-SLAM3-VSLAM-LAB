@@ -17,7 +17,7 @@ namespace ORB_SLAM3{
 
 void LoadImages(const string &pathToSequence, const string &rgb_csv,
                 vector<string> &imageFilenames, vector<ORB_SLAM3::Seconds> &timestamps,
-                const string cam_name = "rgb0");
+                const string cam_name = "rgb_0");
 std::string paddingZeros(const std::string& number, const size_t numberOfZeros = 5);
 
 void removeSubstring(std::string& str, const std::string& substring) {
@@ -201,7 +201,7 @@ void LoadImages(const string &pathToSequence, const string &rgb_csv,
     }
 
     // Required headers
-    const std::string header_ts = "ts_" + cam_name;
+    const std::string header_ts = "ts_" + cam_name + " (ns)";
     const std::string header_rgb0 = "path_" + cam_name;
 
     // Safely get indices
@@ -223,7 +223,7 @@ void LoadImages(const string &pathToSequence, const string &rgb_csv,
         std::string t_str = tokens[ts_idx];
         std::string rel_rgb0_path = tokens[rgb0_idx];
 
-        ORB_SLAM3::Seconds t = std::stod(t_str);
+        ORB_SLAM3::Seconds t = static_cast<double>(std::stoll(t_str)) * 1e-9;
 
         timestamps.push_back(t);
         imageFilenames.push_back(pathToSequence + "/" + rel_rgb0_path);
