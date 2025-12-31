@@ -221,19 +221,21 @@ namespace ORB_SLAM3 {
     }
 
     void Settings::readCamera1(cv::FileStorage &fSettings, const YAML::Node& cam) {
-        // const YAML::Node& cameras = calibration["cameras"];
-        // YAML::Node cam;
-        // for (int i{0}; i < cameras.size(); ++i){
-        //     if (cameras[i]["cam_name"].as<std::string>() == cam_name){
-        //         cam = cameras[i];
-        //         break;
-        //     }
-        // }
+
         string cameraModel = cam["cam_model"].as<std::string>();
 
         vector<float> vCalibration;
-        if ((cameraModel == "pinhole") && cam["distortion_type"] && cam["distortion_coefficients"] 
-            && (cam["distortion_type"].as<std::string>() != "equid4")) {
+
+        bool hasDistortion = (cam["distortion_type"] && cam["distortion_coefficients"]);
+        std::string dist_type = cam["distortion_type"].as<std::string>();
+
+        if (hasDistortion) {
+            std::vector<float> dist_coeffs_vec = cam["distortion_coefficients"].as<std::vector<float>>(); 
+            validateDistortionModel(dist_type, dist_coeffs_vec);
+        } 
+
+        if (hasDistortion && (dist_type == "radtan4" || dist_type == "radtan5")) {
+            
             cameraType_ = PinHole;
 
             //Read intrinsic parameters
@@ -252,9 +254,9 @@ namespace ORB_SLAM3 {
             if((sensor_ == System::MONOCULAR || sensor_ == System::RGBD || 
                 sensor_ == System::IMU_MONOCULAR) && vPinHoleDistorsion1_.size() != 0){
                 bNeedToUndistort_ = true;
-            }
+            }     
         }
-        else{ //Rectified images are assumed to be ideal PinHole images (no distortion)
+        if (!hasDistortion) { //Rectified images are assumed to be ideal PinHole images (no distortion)
 
             cameraType_ = Rectified;
 
@@ -269,7 +271,8 @@ namespace ORB_SLAM3 {
             calibration1_ = new Pinhole(vCalibration);
             originalCalib1_ = new Pinhole(vCalibration);
         }
-        if(cameraModel == "equid4"){
+
+        if (hasDistortion && dist_type == "equid4") {
             cameraType_ = KannalaBrandt;
 
             //Read intrinsic parameters
@@ -318,6 +321,7 @@ namespace ORB_SLAM3 {
             calibration2_ = new Pinhole(vCalibration);
             originalCalib2_ = new Pinhole(vCalibration);
             vPinHoleDistorsion2_ = cam1["distortion_coefficients"].as<std::vector<float>>();     
+            validateDistortionModel(cam1["distortion_type"].as<std::string>(), vPinHoleDistorsion2_);
         }
         else if(cameraType_ == Rectified){
             //Read intrinsic parameters
@@ -338,7 +342,8 @@ namespace ORB_SLAM3 {
             float cx = cam1["principal_point"][0].as<float>();
             float cy = cam1["principal_point"][1].as<float>();
 
-            std::vector<float> dist = cam1["distortion_coefficients"].as<std::vector<float>>();      
+            std::vector<float> dist = cam1["distortion_coefficients"].as<std::vector<float>>(); 
+            validateDistortionModel(cam1["distortion_type"].as<std::string>(), dist);     
             float k0 = dist[0];
             float k1 = dist[1];
             float k2 = dist[2];
@@ -641,5 +646,30 @@ namespace ORB_SLAM3 {
         output << "\t-Min FAST threshold: " << settings.minThFAST_ << endl;
 
         return output;
+    }
+
+    void Settings::validateDistortionModel(const std::string& dist_type, const std::vector<float>& dist_coeffs_vec) {
+        if (dist_type == "radtan4") {
+            if (dist_coeffs_vec.size() != 4) {
+                cout << "[Error] Distortion model '" << dist_type << "' but num parameters != 4" << endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (dist_type == "radtan5") {
+            if (dist_coeffs_vec.size() != 5) {
+                cout << "[Error] Distortion model '" << dist_type << "' but num parameters != 5" << endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (dist_type == "equid4") {
+            if (dist_coeffs_vec.size() != 4) {
+                cout << "[Error] Distortion model '" << dist_type << "' but num parameters != 4" << endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else {
+            cout << "[Error] Distortion model '" << dist_type << "' not supported. Terminating!" << endl;        
+            exit(EXIT_FAILURE);
+        }
     }
 };

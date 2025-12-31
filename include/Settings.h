@@ -156,6 +156,7 @@ namespace ORB_SLAM3 {
         void readOtherParameters(cv::FileStorage& fSettings);
 
         void precomputeRectificationMaps();
+        void validateDistortionModel(const std::string& dist_type, const std::vector<float>& dist_coeffs_vec);
 
         int sensor_;
         CameraType cameraType_;     //Camera type
