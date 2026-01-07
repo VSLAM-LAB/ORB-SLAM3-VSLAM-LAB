@@ -67,8 +67,8 @@ library_name="Sophus"
 source_folder="${LIBRARY_DIR}/Thirdparty/${library_name}"
 build_library ${library_name} ${source_folder} ${verbose} ${force_build}
 
-## Build ORB-SLAM2
-library_name="ORB-SLAM2"
+## Build ORB-SLAM3
+library_name="ORB-SLAM3"
 source_folder="${LIBRARY_DIR}"
 build_library ${library_name} ${source_folder} ${verbose} ${force_build}
 
